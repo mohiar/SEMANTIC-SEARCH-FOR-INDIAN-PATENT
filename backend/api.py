@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
-from threading import Lock
+from threading import Lock, Timer
 import shutil
 
 # Configure logging
@@ -82,7 +82,9 @@ class PatentSearchRequest(BaseModel):
     title: str
     captcha_value: str
     include_papers: bool = True
-    top_k: int = 10
+    top_k: Optional[int] = None
+    ipr_limit: int = 25
+    scholar_limit: int = 25
     email_id: Optional[str] = None
 
 
@@ -94,6 +96,10 @@ search_cache = {}
 RESULTS_DIR = "search_results"
 patent_scraper = None
 patent_scraper_lock = Lock()
+cleanup_timers = {}
+cleanup_lock = Lock()
+CLEANUP_TTL_SECONDS = int(os.getenv("RESULT_CLEANUP_TTL_SECONDS", "300"))
+CLEANUP_AFTER_EMAIL_SECONDS = int(os.getenv("RESULT_CLEANUP_AFTER_EMAIL_SECONDS", "60"))
 
 # Create results directory
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -207,7 +213,7 @@ def run_google_scholar_scrape(query: str, limit: int = 25) -> List[dict]:
 def maybe_send_email_results(email_id: Optional[str], query: str, results: List[SearchResult], request_id: str):
     """Send result summary email when SMTP env is configured."""
     if not email_id:
-        return
+        return False
 
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASS")
@@ -217,7 +223,7 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
 
     if not smtp_user or not smtp_pass or not from_email:
         logger.warning("Email requested but SMTP credentials are not configured; skipping email send.")
-        return
+        return False
 
     body_lines = [
         f"Query: {query}",
@@ -262,8 +268,44 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
         logger.info(f"✅ Results email sent to {email_id}")
+        return True
     except Exception as e:
         logger.error(f"❌ Failed to send email to {email_id}: {e}")
+        return False
+
+
+def cleanup_request_data(request_id: str):
+    """Remove cached and on-disk data for a request."""
+    try:
+        search_cache.pop(request_id, None)
+
+        summary_file = os.path.join(RESULTS_DIR, f"{request_id}.json")
+        if os.path.exists(summary_file):
+            os.remove(summary_file)
+
+        artifacts_dir = os.path.join(RESULTS_DIR, request_id)
+        if os.path.exists(artifacts_dir):
+            shutil.rmtree(artifacts_dir)
+
+        logger.info(f"🧹 Cleaned up data for request {request_id}")
+    except Exception as e:
+        logger.error(f"Failed to clean up request {request_id}: {e}")
+    finally:
+        with cleanup_lock:
+            cleanup_timers.pop(request_id, None)
+
+
+def schedule_cleanup(request_id: str, delay_seconds: int):
+    """Schedule delayed cleanup for request artifacts and cache."""
+    with cleanup_lock:
+        existing = cleanup_timers.get(request_id)
+        if existing:
+            existing.cancel()
+        timer = Timer(delay_seconds, cleanup_request_data, args=[request_id])
+        timer.daemon = True
+        cleanup_timers[request_id] = timer
+        timer.start()
+    logger.info(f"⏳ Scheduled cleanup for request {request_id} in {delay_seconds}s")
 
 
 def save_pipeline_artifacts(
@@ -339,8 +381,12 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
     if not request.query or len(request.query.strip()) == 0:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     
-    if request.top_k < 1 or request.top_k > 100:
-        raise HTTPException(status_code=400, detail="top_k must be between 1 and 100")
+    if request.ipr_limit < 1 or request.ipr_limit > 200:
+        raise HTTPException(status_code=400, detail="ipr_limit must be between 1 and 200")
+    if request.scholar_limit < 1 or request.scholar_limit > 200:
+        raise HTTPException(status_code=400, detail="scholar_limit must be between 1 and 200")
+    if request.top_k is not None and (request.top_k < 1 or request.top_k > 400):
+        raise HTTPException(status_code=400, detail="top_k must be between 1 and 400")
     
     request_id = str(uuid.uuid4())
     logger.info(f"📥 New search request {request_id}: '{request.query}'")
@@ -654,7 +700,11 @@ async def search_patents(request: PatentSearchRequest, background_tasks: Backgro
                     patent_scraper.init_driver()
                 
                 # Perform search
-                patent_result = patent_scraper.search_patents(request.title, request.captcha_value)
+                patent_result = patent_scraper.search_patents(
+                    request.title,
+                    request.captcha_value,
+                    max_results=request.ipr_limit
+                )
                 if patent_result.get("status") == "success":
                     patent_results = patent_result.get("results", [])
                 else:
@@ -663,7 +713,7 @@ async def search_patents(request: PatentSearchRequest, background_tasks: Backgro
             # Run scholar scrape outside patent lock
             scholar_results = []
             if request.include_papers:
-                scholar_results = run_google_scholar_scrape(request.title, limit=max(10, request.top_k * 3))
+                scholar_results = run_google_scholar_scrape(request.title, limit=request.scholar_limit)
 
             # Normalize and combine
             normalized_patents = []
@@ -687,7 +737,8 @@ async def search_patents(request: PatentSearchRequest, background_tasks: Backgro
                 })
 
             combined_data = normalized_patents + normalized_scholar
-            ranked_results = apply_bm25_ranking(combined_data, request.title, request.top_k)
+            final_top_k = request.top_k or min(len(combined_data), request.ipr_limit + request.scholar_limit)
+            ranked_results = apply_bm25_ranking(combined_data, request.title, final_top_k)
             
             # Create response
             response = SearchResponse(
@@ -725,7 +776,9 @@ async def search_patents(request: PatentSearchRequest, background_tasks: Backgro
             
             search_cache[request_id] = response
             save_search_results(request_id, response)
-            maybe_send_email_results(request.email_id, request.title, response.results, request_id)
+            email_sent = maybe_send_email_results(request.email_id, request.title, response.results, request_id)
+            cleanup_delay = CLEANUP_AFTER_EMAIL_SECONDS if email_sent else CLEANUP_TTL_SECONDS
+            schedule_cleanup(request_id, cleanup_delay)
             
             logger.info(
                 f"Combined search {request_id} completed "
@@ -745,6 +798,7 @@ async def search_patents(request: PatentSearchRequest, background_tasks: Backgro
             )
             search_cache[request_id] = response
             save_search_results(request_id, response)
+            schedule_cleanup(request_id, CLEANUP_TTL_SECONDS)
     
     background_tasks.add_task(process_patent_search)
     

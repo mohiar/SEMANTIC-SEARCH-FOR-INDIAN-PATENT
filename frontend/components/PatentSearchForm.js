@@ -6,7 +6,9 @@ export default function PatentSearchForm({ onSubmit, loading }) {
   const [captchaValue, setCaptchaValue] = useState('');
   const [emailId, setEmailId] = useState('');
   const [includePapers, setIncludePapers] = useState(true);
-  const [topK, setTopK] = useState(10);
+  const [iprLimit, setIprLimit] = useState(25);
+  const [scholarLimit, setScholarLimit] = useState(25);
+  const [topK, setTopK] = useState('');
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -14,7 +16,9 @@ export default function PatentSearchForm({ onSubmit, loading }) {
       title,
       captchaValue,
       includePapers,
-      topK: Number(topK),
+      iprLimit: Number(iprLimit),
+      scholarLimit: Number(scholarLimit),
+      topK: topK ? Number(topK) : null,
       emailId: emailId.trim() || null
     });
   };
@@ -41,14 +45,14 @@ export default function PatentSearchForm({ onSubmit, loading }) {
         onChange={(e) => setCaptchaValue(e.target.value)}
       />
 
-      <label htmlFor="top-k">Top K Ranked Results</label>
+      <label htmlFor="ipr-limit">IPR Abstract Count</label>
       <input
-        id="top-k"
+        id="ipr-limit"
         type="number"
         min="1"
-        max="100"
-        value={topK}
-        onChange={(e) => setTopK(e.target.value)}
+        max="200"
+        value={iprLimit}
+        onChange={(e) => setIprLimit(e.target.value)}
       />
 
       <label className={styles.checkbox}>
@@ -59,6 +63,27 @@ export default function PatentSearchForm({ onSubmit, loading }) {
         />
         Include Google Scholar papers in ranking
       </label>
+
+      <label htmlFor="scholar-limit">Google Scholar Abstract Count</label>
+      <input
+        id="scholar-limit"
+        type="number"
+        min="1"
+        max="200"
+        value={scholarLimit}
+        onChange={(e) => setScholarLimit(e.target.value)}
+      />
+
+      <label htmlFor="top-k">Final Top K (optional)</label>
+      <input
+        id="top-k"
+        type="number"
+        min="1"
+        max="400"
+        value={topK}
+        placeholder="Defaults to ipr + scholar"
+        onChange={(e) => setTopK(e.target.value)}
+      />
 
       <label htmlFor="email-id">Email ID (optional)</label>
       <input

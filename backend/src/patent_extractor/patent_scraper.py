@@ -112,7 +112,7 @@ class PatentScraperService:
             logger.error(f"❌ Error getting CAPTCHA screenshot: {e}")
             return None
     
-    def search_patents(self, title: str, captcha_value: str) -> Dict:
+    def search_patents(self, title: str, captcha_value: str, max_results: Optional[int] = None) -> Dict:
         """
         Search for patents with given title and CAPTCHA value.
         
@@ -171,10 +171,15 @@ class PatentScraperService:
                 logger.info("✅ Search results loaded")
                 
                 # Extract results from current page
-                self._extract_page_results()
-                
-                # Try to go to next page
-                self._try_next_page()
+                self._extract_page_results(max_results=max_results)
+
+                # Continue pagination until limit reached or pages end
+                while True:
+                    if max_results and len(self.results) >= max_results:
+                        break
+                    moved = self._try_next_page(max_results=max_results)
+                    if not moved:
+                        break
                 
                 return {
                     "status": "success",
@@ -196,7 +201,7 @@ class PatentScraperService:
                 "message": str(e)
             }
     
-    def _extract_page_results(self):
+    def _extract_page_results(self, max_results: Optional[int] = None):
         """Extract patent data from current page"""
         try:
             logger.info("Extracting results from page...")
@@ -223,6 +228,9 @@ class PatentScraperService:
             
             # Extract abstracts for each patent
             for i, record in enumerate(page_results, 1):
+                if max_results and len(self.results) >= max_results:
+                    logger.info(f"Reached max_results={max_results}, stopping extraction")
+                    break
                 logger.info(f"Processing patent {i}/{len(page_results)}: {record['title'][:50]}...")
                 self._extract_abstract(record)
                 self.results.append(record)
@@ -269,8 +277,10 @@ class PatentScraperService:
             logger.error(f"Error extracting abstract: {e}")
             self.abstracts[record["application_number"]] = "Error extracting abstract"
     
-    def _try_next_page(self):
+    def _try_next_page(self, max_results: Optional[int] = None):
         """Try to navigate to next page"""
+        if max_results and len(self.results) >= max_results:
+            return False
         try:
             logger.info("Looking for next page...")
             next_button = WebDriverWait(self.driver, 5).until(
@@ -282,10 +292,12 @@ class PatentScraperService:
             time.sleep(2)
             
             # Extract from next page
-            self._extract_page_results()
+            self._extract_page_results(max_results=max_results)
+            return True
         
         except:
             logger.info("ℹ️  No next page found or only one page of results")
+            return False
     
     def _serialize_results(self) -> List[Dict]:
         """Convert results to serializable format"""

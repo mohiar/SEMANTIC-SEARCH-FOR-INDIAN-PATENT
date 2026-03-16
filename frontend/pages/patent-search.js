@@ -91,7 +91,7 @@ export default function PatentSearchPage() {
     };
   }, [requestId]);
 
-  const onSubmit = async ({ title, captchaValue, includePapers, topK, emailId }) => {
+  const onSubmit = async ({ title, captchaValue, includePapers, iprLimit, scholarLimit, topK, emailId }) => {
     try {
       setError('');
       setInfo('');
@@ -112,7 +112,9 @@ export default function PatentSearchPage() {
           title,
           captcha_value: captchaValue,
           include_papers: includePapers,
-          top_k: Number(topK),
+          ipr_limit: Number(iprLimit),
+          scholar_limit: Number(scholarLimit),
+          top_k: topK,
           email_id: emailId
         })
       });

@@ -23,9 +23,6 @@ export default function HomePage() {
             <Link href="/patent-search" className={styles.primaryBtn}>
               Combined Search
             </Link>
-            <Link href="/search" className={styles.secondaryBtn}>
-              Semantic (Legacy)
-            </Link>
           </div>
         </section>
 
@@ -37,16 +34,6 @@ export default function HomePage() {
             </p>
             <Link href="/patent-search" className={styles.linkBtn}>
               Open Combined Search
-            </Link>
-          </article>
-
-          <article className={styles.card}>
-            <h2>Semantic Search</h2>
-            <p>
-              Query ranked results from combined patent and Google Scholar datasets using BM25.
-            </p>
-            <Link href="/search" className={styles.linkBtn}>
-              Open Semantic Search
             </Link>
           </article>
         </section>
