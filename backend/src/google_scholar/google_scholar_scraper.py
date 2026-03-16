@@ -453,6 +453,63 @@ class GoogleScholarScraper:
             if self.driver:
                 self.driver.quit()
 
+    def scrape_query_results(self, query: str, limit: int = 25):
+        """
+        Lightweight scrape for API pipeline.
+        Returns normalized paper list (title, authors, paper_url, abstract/snippet).
+        """
+        logger.info(f"Starting lightweight scholar scrape for query: {query}")
+        if not self.init_selenium_driver():
+            return []
+
+        papers = []
+        try:
+            if not self.search_google_scholar(query):
+                return []
+
+            while len(papers) < limit:
+                page_items = self.extract_search_results()
+                if not page_items:
+                    break
+
+                for item in page_items:
+                    item["abstract"] = item.get("snippet", "") or ""
+                    papers.append(item)
+                    if len(papers) >= limit:
+                        break
+
+                if len(papers) >= limit:
+                    break
+
+                try:
+                    next_button = self.driver.find_element(By.CSS_SELECTOR, '#gs_n a:last-child')
+                    if "Next" not in next_button.text:
+                        break
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
+                    time.sleep(1)
+                    self.driver.execute_script("arguments[0].click();", next_button)
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "gs_ri"))
+                    )
+                    time.sleep(2)
+                except Exception:
+                    break
+
+            papers = papers[:limit]
+            # Persist for observability; failure here should not fail the API pipeline.
+            try:
+                self.save_papers_to_db(papers, query)
+            except Exception as db_err:
+                logger.warning(f"Could not persist scholar results to DB: {db_err}")
+
+            return papers
+        except Exception as e:
+            logger.error(f"Error in lightweight scholar scrape: {e}")
+            return []
+        finally:
+            if self.driver:
+                self.driver.quit()
+
     def display_results(self, query=None):
         """Display results from database."""
         try:

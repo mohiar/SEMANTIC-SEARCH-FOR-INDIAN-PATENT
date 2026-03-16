@@ -1,0 +1,92 @@
+.page {
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.hero {
+  background: linear-gradient(145deg, #0f2f86 0%, #114ec9 70%, #2a73ee 100%);
+  color: #fff;
+  border-radius: 22px;
+  padding: 42px 32px;
+  box-shadow: 0 24px 50px rgba(13, 44, 123, 0.25);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 2.7vw, 2.9rem);
+}
+
+.hero p {
+  max-width: 700px;
+  margin: 14px 0 0;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-weight: 600;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primaryBtn {
+  background: #fff;
+  color: #0f2f86;
+}
+
+.secondaryBtn {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+}
+
+.primaryBtn:hover,
+.secondaryBtn:hover,
+.linkBtn:hover {
+  transform: translateY(-1px);
+  opacity: 0.94;
+}
+
+.cards {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid #d8dff4;
+  padding: 20px;
+  box-shadow: 0 12px 30px rgba(7, 28, 73, 0.07);
+}
+
+.card h2 {
+  margin: 0;
+}
+
+.card p {
+  margin: 10px 0 16px;
+  color: #3f4f79;
+  line-height: 1.6;
+}
+
+.linkBtn {
+  background: #e8f0ff;
+  color: #114ec9;
+}
