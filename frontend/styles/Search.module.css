@@ -51,18 +51,36 @@
   gap: 10px;
 }
 
+.captchaBlock {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
 .form label {
   font-size: 0.94rem;
   color: var(--muted);
 }
 
 .form input,
-.form textarea {
+.form textarea,
+.form select {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
   color: var(--text);
   padding: 10px 11px;
+  font-family: inherit;
+}
+
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 32px;
 }
 
 .form textarea {
@@ -95,6 +113,29 @@
   color: #103d9c;
 }
 
+.refreshButtonActive {
+  margin-top: 10px;
+  background: #0a43b2;
+  color: #fff;
+  font-weight: 700;
+  border: 2px solid #0a43b2;
+  box-shadow: 0 4px 12px rgba(10, 67, 178, 0.3);
+  animation: pulse 2s infinite;
+}
+
+.refreshButtonActive:disabled {
+  opacity: 0.7;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(10, 67, 178, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(10, 67, 178, 0.6);
+  }
+}
+
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -116,6 +157,50 @@
   display: grid;
   place-items: center;
   padding: 12px;
+}
+
+.captchaBoxWithOverlay {
+  min-height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  position: relative;
+}
+
+.captchaOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.refreshButtonOverlay {
+  background: #0a43b2;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(10, 67, 178, 0.5);
+  transition: all 0.2s ease;
+}
+
+.refreshButtonOverlay:hover {
+  background: #082e8f;
+  box-shadow: 0 8px 26px rgba(10, 67, 178, 0.7);
+  transform: translateY(-2px);
 }
 
 .captchaImage {
@@ -191,4 +276,36 @@
   display: inline-flex;
   color: #0d46b8;
   font-weight: 600;
+}
+
+/* Error state for inputs */
+.errorInput {
+  border-color: var(--danger);
+  background-color: #fff0f2;
+}
+
+/* Inline error messages */
+.errorMessage {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Required asterisk for labels */
+.requiredAsterisk {
+  color: red;
+}
+
+/* Focus effect for inputs with error */
+.errorInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 77, 96, 0.3);
+}
+
+/* Smoother transition */
+.form input,
+.form select,
+.form textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }

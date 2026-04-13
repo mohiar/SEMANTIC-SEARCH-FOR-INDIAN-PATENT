@@ -17,7 +17,7 @@ export default function HomePage() {
         <section className={styles.hero}>
           <h1>Semantic Patent Search</h1>
           <p>
-            Unified workflow for Indian patent lookup, Google Scholar scraping, and BM25 semantic ranking.
+            Unified workflow for Indian patent lookup, Google Scholar scraping, and semantic ranking.
           </p>
           <div className={styles.actions}>
             <Link href="/patent-search" className={styles.primaryBtn}>
@@ -30,7 +30,7 @@ export default function HomePage() {
           <article className={styles.card}>
             <h2>Combined Pipeline</h2>
             <p>
-              Solve CAPTCHA, scrape patents, scrape Google Scholar, and get BM25-ranked combined results.
+              Solve CAPTCHA, scrape patents, scrape Google Scholar, and get combined results.
             </p>
             <Link href="/patent-search" className={styles.linkBtn}>
               Open Combined Search

@@ -112,54 +112,108 @@ class PatentScraperService:
             logger.error(f"❌ Error getting CAPTCHA screenshot: {e}")
             return None
     
-    def search_patents(self, title: str, captcha_value: str, max_results: Optional[int] = None) -> Dict:
+    
+    def _inspect_page_structure(self):
+        """Debug method to inspect and log page structure for troubleshooting"""
+        try:
+            logger.info("=" * 80)
+            logger.info("INSPECTING PAGE STRUCTURE FOR DEBUGGING")
+            logger.info("=" * 80)
+            
+            # Check for all select elements
+            selects = self.driver.find_elements(By.TAG_NAME, "select")
+            logger.info(f"Found {len(selects)} SELECT elements:")
+            for i, select in enumerate(selects):
+                logger.info(f"  [{i}] id='{select.get_attribute('id')}', "
+                           f"name='{select.get_attribute('name')}', "
+                           f"class='{select.get_attribute('class')}'")
+                options = select.find_elements(By.TAG_NAME, "option")
+                for opt in options[:5]:  # Log first 5 options
+                    logger.info(f"      - {opt.text}")
+            
+            # Check for all text input elements
+            inputs = self.driver.find_elements(By.XPATH, "//input[@type='text']")
+            logger.info(f"Found {len(inputs)} TEXT INPUT elements:")
+            for i, inp in enumerate(inputs):
+                logger.info(f"  [{i}] id='{inp.get_attribute('id')}', "
+                           f"name='{inp.get_attribute('name')}', "
+                           f"placeholder='{inp.get_attribute('placeholder')}', "
+                           f"class='{inp.get_attribute('class')}'")
+            
+            # Check for submit buttons
+            buttons = self.driver.find_elements(By.XPATH, "//input[@type='submit'] | //button[@type='submit'] | //button")
+            logger.info(f"Found {len(buttons)} BUTTON/SUBMIT elements:")
+            for i, btn in enumerate(buttons[:10]):  # Log first 10 buttons
+                logger.info(f"  [{i}] type='{btn.get_attribute('type')}', "
+                           f"value='{btn.get_attribute('value')}', "
+                           f"text='{btn.text}', "
+                           f"class='{btn.get_attribute('class')}'")
+            
+            logger.info("=" * 80)
+        except Exception as e:
+            logger.error(f"Error inspecting page: {e}")
+    
+    def search_patents(self, title: str, captcha_value: Optional[str] = None, search_field: str = "Title", max_results: Optional[int] = None) -> Dict:
         """
-        Search for patents with given title and CAPTCHA value.
+        Search for patents with given title and optional CAPTCHA value.
         
         Args:
-            title: Patent title to search
-            captcha_value: CAPTCHA value entered by user
+            title: Patent title/query to search
+            captcha_value: CAPTCHA value (optional if reusing existing session with valid CAPTCHA)
+            search_field: Which field to search (Title, Abstract, Application Number, Complete Specification)
+            max_results: Maximum results to extract
         
         Returns:
             Dictionary with results and status
+            
+        Usage (Pipeline Mode - No CAPTCHA):
+            1. Frontend calls /patents/initiate (shows CAPTCHA)
+            2. User solves CAPTCHA and calls /patents/search WITH captcha_value
+            3. User can call /patents/search again WITHOUT captcha_value (reuses driver + already-validated CAPTCHA)
         """
         try:
-            logger.info(f"Starting patent search for: '{title}'")
+            logger.info(f"Starting patent search for: '{title}' in field '{search_field}' (captcha_provided={bool(captcha_value)})")
             # Reset per-search state so consecutive requests do not leak results.
             self.results = []
             self.abstracts = {}
             
-            # Step 1: Select "Title" in dropdown
-            logger.info("Selecting 'Title' from dropdown...")
-            select_field = Select(self.driver.find_element(
-                By.XPATH, "//select[contains(@class,'item-select')]"
-            ))
-            select_field.select_by_visible_text("Title")
+            # NOTE: Page is already loaded from get_captcha_screenshot()
+            # Do NOT navigate again - reuse existing page with same CAPTCHA shown to user
+            time.sleep(2)  # Wait for page stability
+            
+            # Step 1: Select search field from dropdown
+            logger.info(f"Selecting '{search_field}' from dropdown...")
+            select_field = self._find_and_select_dropdown(search_field)
+            if not select_field:
+                raise Exception(f"Could not find or select the '{search_field}' field")
             time.sleep(1)
             
             # Step 2: Enter title
-            logger.info(f"Entering title: {title}")
-            search_input = self.driver.find_element(
-                By.XPATH, "//input[@placeholder='e.g. COMPUTER IMPLEMENTED']"
-            )
+            logger.info(f"Entering search query: {title}")
+            search_input = self._find_search_input()
+            if not search_input:
+                raise Exception("Could not find search input field")
             search_input.clear()
             search_input.send_keys(title)
             time.sleep(1)
             
-            # Step 3: Enter CAPTCHA
-            logger.info("Entering CAPTCHA...")
-            captcha_box = self.driver.find_element(
-                By.XPATH, "//input[@placeholder='Enter Captcha']"
-            )
-            captcha_box.clear()
-            captcha_box.send_keys(captcha_value)
-            time.sleep(1)
+            # Step 3: Enter CAPTCHA (skip if None - reusing session with already-validated CAPTCHA)
+            if captcha_value:
+                logger.info("Entering CAPTCHA...")
+                captcha_box = self._find_captcha_input()
+                if not captcha_box:
+                    raise Exception("Could not find CAPTCHA input field")
+                captcha_box.clear()
+                captcha_box.send_keys(captcha_value)
+                time.sleep(1)
+            else:
+                logger.info("⏭️  Skipping CAPTCHA entry (reusing existing session)")
             
             # Step 4: Click Search button
             logger.info("Clicking search button...")
-            search_btn = self.driver.find_element(
-                By.XPATH, "//input[@type='submit' and @value='Search']"
-            )
+            search_btn = self._find_search_button()
+            if not search_btn:
+                raise Exception("Could not find search button")
             search_btn.click()
             time.sleep(3)
             
@@ -191,7 +245,7 @@ class PatentScraperService:
                 logger.error("❌ No results found or CAPTCHA incorrect")
                 return {
                     "status": "error",
-                    "message": "No results found. CAPTCHA may be incorrect."
+                    "message": "No results found. CAPTCHA may be incorrect or session expired."
                 }
         
         except Exception as e:
@@ -200,6 +254,128 @@ class PatentScraperService:
                 "status": "error",
                 "message": str(e)
             }
+    
+    def _find_and_select_dropdown(self, option_text: str):
+        """Find dropdown using multiple selectors and select option"""
+        selectors = [
+            "//select[@name='ItemField1']",  # Primary field selector by name
+            "//select[contains(@class,'item-select')]",  # Class-based selector
+            "//select[contains(@class,'form-control')]",  # Generic form-control
+            "//select[@name]",  # Any select with a name
+            "//select",  # Last resort - any select
+        ]
+        
+        for selector in selectors:
+            try:
+                logger.debug(f"Trying selector: {selector}")
+                # Wait for element to be visible and clickable (not just present)
+                element = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, selector))
+                )
+                
+                # Give extra time for element to stabilize
+                time.sleep(0.5)
+                
+                # Try to select by visible text
+                select_field = Select(element)
+                
+                # Check if option exists
+                try:
+                    select_field.select_by_visible_text(option_text)
+                    logger.info(f"✅ Found and selected '{option_text}' from dropdown using selector: {selector}")
+                    return select_field
+                except Exception as opt_err:
+                    # If visible text fails, try other approaches
+                    logger.debug(f"select_by_visible_text failed: {opt_err}. Trying alternatives...")
+                    options = select_field.options
+                    for option in options:
+                        if option_text.lower() in option.text.lower():
+                            option.click()
+                            logger.info(f"✅ Selected '{option_text}' using option click method")
+                            return select_field
+                    raise opt_err
+                    
+            except Exception as e:
+                logger.debug(f"Selector '{selector}' failed: {e}")
+                continue
+        
+        logger.error("❌ Could not find dropdown with any selector")
+        return None
+    
+    def _find_search_input(self):
+        """Find search input field using multiple selectors"""
+        selectors = [
+            "//input[@name='TextField1']",  # Primary selector by name
+            "//input[@placeholder='e.g. COMPUTER IMPLEMENTED']",  # Placeholder match
+            "//input[contains(@placeholder, 'COMPUTER')]",  # Partial placeholder match
+            "//input[@type='text'][contains(@placeholder, 'e.g.')]",  # Type + placeholder
+            "//input[@type='text'][@placeholder]",  # Any text input with placeholder
+        ]
+        
+        for selector in selectors:
+            try:
+                logger.debug(f"Trying selector: {selector}")
+                element = WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+                logger.info(f"✅ Found search input field using selector: {selector}")
+                return element
+            except Exception as e:
+                logger.debug(f"Search input selector '{selector}' failed: {e}")
+                continue
+        
+        logger.error("❌ Could not find search input field")
+        return None
+    
+    def _find_captcha_input(self):
+        """Find CAPTCHA input field using multiple selectors"""
+        selectors = [
+            "//input[@id='CaptchaText']",  # Primary selector by id
+            "//input[@name='CaptchaText']",  # Selector by name
+            "//input[@placeholder='Enter Captcha']",  # Exact placeholder match
+            "//input[contains(@placeholder, 'Captcha')]",  # Case-sensitive partial match
+            "//input[contains(@placeholder, 'captcha')]",  # Case-insensitive partial match
+        ]
+        
+        for selector in selectors:
+            try:
+                logger.debug(f"Trying selector: {selector}")
+                element = WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+                logger.info(f"✅ Found CAPTCHA input field using selector: {selector}")
+                return element
+            except Exception as e:
+                logger.debug(f"CAPTCHA input selector '{selector}' failed: {e}")
+                continue
+        
+        logger.error("❌ Could not find CAPTCHA input field")
+        return None
+    
+    def _find_search_button(self):
+        """Find search button using multiple selectors"""
+        selectors = [
+            "//input[@type='submit'][@value='Search']",  # Primary: input submit with Value=Search
+            "//input[@type='submit' and @value='Search']",  # Alternative syntax
+            "//input[@type='submit']",  # Any submit button
+            "//button[contains(text(), 'Search')]",  # Button with Search text
+            "//button[@type='submit']",  # Any submit button element
+        ]
+        
+        for selector in selectors:
+            try:
+                logger.debug(f"Trying selector: {selector}")
+                element = WebDriverWait(self.driver, 3).until(
+                    EC.element_to_be_clickable((By.XPATH, selector))
+                )
+                logger.info(f"✅ Found search button using selector: {selector}")
+                return element
+            except Exception as e:
+                logger.debug(f"Search button selector '{selector}' failed: {e}")
+                continue
+        
+        logger.error("❌ Could not find search button")
+        return None
     
     def _extract_page_results(self, max_results: Optional[int] = None):
         """Extract patent data from current page"""

@@ -17,14 +17,13 @@ import uuid
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
-from threading import Lock, Timer
+from threading import Lock, Timer, Event
+from queue import Queue
 import shutil
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from repo root (works even when launched from backend/).
-BASE_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(BASE_DIR / ".env")
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -86,7 +85,8 @@ class SearchRequest(BaseModel):
 class PatentSearchRequest(BaseModel):
     """Patent search request"""
     title: str
-    captcha_value: str
+    captcha_value: Optional[str] = None  # Optional if reusing session
+    search_field: str = "Title"  # Dropdown field: Title, Abstract, Application Number, Complete Specification
     include_papers: bool = True
     top_k: Optional[int] = None
     ipr_limit: int = 25
@@ -98,14 +98,24 @@ class PatentSearchRequest(BaseModel):
 # GLOBAL STATE
 # ============================================================================
 
-search_cache = {}
+search_cache = {}  # Stores SearchResponse objects for each request_id
 RESULTS_DIR = "search_results"
 patent_scraper = None
-patent_scraper_lock = Lock()
+patent_scraper_lock = Lock()  # Prevents concurrent patent scraper access
 cleanup_timers = {}
 cleanup_lock = Lock()
 CLEANUP_TTL_SECONDS = int(os.getenv("RESULT_CLEANUP_TTL_SECONDS", "300"))
 CLEANUP_AFTER_EMAIL_SECONDS = int(os.getenv("RESULT_CLEANUP_AFTER_EMAIL_SECONDS", "60"))
+
+# Request queue tracking for monitoring concurrent requests
+request_queue = {}
+queue_lock = Lock()
+
+# Patent search queue system (allows multiple concurrent Selenium instances)
+MAX_CONCURRENT_PATENT_SEARCHES = int(os.getenv("MAX_CONCURRENT_PATENT_SEARCHES", "2"))
+patent_search_queue = Queue()  # Thread-safe queue for patent search requests
+active_patent_searches = 0  # Current count of active searches
+patent_queue_lock = Lock()
 
 # Create results directory
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -188,11 +198,11 @@ def apply_bm25_ranking(combined_data, query, top_k=10):
             normalized_docs.append(normalized)
         
         searcher = BM25SemanticSearch()
-        # Widen candidate pool before final top-k cut so both sources can compete fairly.
-        candidate_k = min(len(normalized_docs), max(top_k * 5, 50))
+        # Use the exact top_k value from API request
+        candidate_k = min(len(normalized_docs), top_k)
         results = searcher.search(query, normalized_docs, top_k=candidate_k, similarity_threshold=0.30)
-        logger.info(f"✅ BM25 ranking completed")
-        return results[:top_k]
+        logger.info(f"✅ BM25 ranking completed with top_k={top_k}")
+        return results
         
     except ImportError:
         logger.warning("⚠️  BM25 module not found. Returning combined results without ranking.")
@@ -221,14 +231,15 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
     if not email_id:
         return False
 
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = (os.getenv("SMTP_PASS"))
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT"))
-    from_email = os.getenv("FROM_EMAIL")
+    # Read from environment variables instead of hardcoding
+    SMTP_USER = os.getenv("SMTP_USER")
+    SMTP_PASS = os.getenv("SMTP_PASS")
+    FROM_EMAIL = os.getenv("FROM_EMAIL")
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 
-    if not smtp_user or not smtp_pass or not from_email:
-        logger.warning("Email requested but SMTP credentials are not configured; skipping email send.")
+    if not SMTP_USER or not SMTP_PASS or not FROM_EMAIL:
+        logger.warning("Email requested but SMTP credentials are not configured in .env; skipping email send.")
         return False
 
     body_lines = [
@@ -248,7 +259,7 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
 
     msg = EmailMessage()
     msg["Subject"] = f"Semantic Patent Search Results: {query}"
-    msg["From"] = from_email
+    msg["From"] = FROM_EMAIL
     msg["To"] = email_id
     msg.set_content("\n".join(body_lines))
 
@@ -269,9 +280,9 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
             logger.warning(f"Could not attach {artifact_name}: {attach_err}")
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
             server.starttls()
-            server.login(smtp_user, smtp_pass)
+            server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         logger.info(f"✅ Results email sent to {email_id}")
         return True
@@ -312,6 +323,208 @@ def schedule_cleanup(request_id: str, delay_seconds: int):
         cleanup_timers[request_id] = timer
         timer.start()
     logger.info(f"⏳ Scheduled cleanup for request {request_id} in {delay_seconds}s")
+
+
+def track_active_request(request_id: str, status: str, query: str):
+    """Track active/queued request for concurrent monitoring"""
+    with queue_lock:
+        request_queue[request_id] = {
+            "query": query,
+            "status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+def untrack_request(request_id: str):
+    """Remove request from active tracking"""
+    with queue_lock:
+        request_queue.pop(request_id, None)
+
+
+def enqueue_patent_search(request_id: str, patent_request: PatentSearchRequest, background_tasks: BackgroundTasks):
+    """Enqueue a patent search request to be processed"""
+    global active_patent_searches
+    
+    patent_search_queue.put((request_id, patent_request))
+    
+    with patent_queue_lock:
+        # If below max concurrent, start a worker
+        if active_patent_searches < MAX_CONCURRENT_PATENT_SEARCHES:
+            background_tasks.add_task(process_patent_search_worker)
+            active_patent_searches += 1
+            logger.info(f"Started patent search worker {active_patent_searches}/{MAX_CONCURRENT_PATENT_SEARCHES}")
+        else:
+            logger.info(f"Patent search queued. Workers at max ({MAX_CONCURRENT_PATENT_SEARCHES})")
+
+
+def get_patent_queue_status():
+    """Get current patent search queue status"""
+    return {
+        "active_searches": active_patent_searches,
+        "max_concurrent": MAX_CONCURRENT_PATENT_SEARCHES,
+        "queued_requests": patent_search_queue.qsize()
+    }
+
+
+async def process_patent_search_worker():
+    """Worker that processes patent searches from queue"""
+    global active_patent_searches
+    
+    while True:
+        # Get next request from queue (non-blocking)
+        if patent_search_queue.empty():
+            with patent_queue_lock:
+                active_patent_searches -= 1
+            logger.info(f"Patent search worker idle. Active: {active_patent_searches}/{MAX_CONCURRENT_PATENT_SEARCHES}")
+            break
+        
+        try:
+            request_id, patent_request = patent_search_queue.get(block=False)
+            logger.info(f"Processing patent search {request_id} from queue")
+            
+            # This will be replaced with actual patent search logic
+            await execute_patent_search(request_id, patent_request)
+            
+        except Exception as e:
+            logger.error(f"Error in patent search worker: {e}")
+            with patent_queue_lock:
+                active_patent_searches -= 1
+
+
+async def execute_patent_search(request_id: str, request: PatentSearchRequest):
+    """Execute the actual patent search (can run concurrently)"""
+    try:
+        global patent_scraper
+        from backend.src.patent_extractor.patent_scraper import PatentScraperService
+
+        track_active_request(request_id, "processing", f"Patent: {request.title}")
+        
+        # REUSE the existing patent_scraper from /patents/initiate if available
+        # This preserves the CAPTCHA that was shown to the user
+        if patent_scraper is not None:
+            logger.info(f"Reusing existing patent scraper driver (preserves CAPTCHA from /patents/initiate)")
+            patent_scraper_instance = patent_scraper
+            reusing_driver = True
+        else:
+            # Fallback: Create a new instance if /patents/initiate wasn't called first
+            logger.info(f"No existing patent scraper. Creating new instance.")
+            patent_scraper_instance = PatentScraperService()
+            if not patent_scraper_instance.init_driver():
+                raise Exception("Failed to initialize WebDriver")
+            reusing_driver = False
+        
+        patent_results = []
+        try:
+            # Perform search with the patent scraper instance
+            patent_result = patent_scraper_instance.search_patents(
+                request.title,
+                request.captcha_value,
+                search_field=request.search_field,
+                max_results=request.ipr_limit
+            )
+            if patent_result.get("status") == "success":
+                patent_results = patent_result.get("results", [])
+            else:
+                logger.warning(f"Patent scraping error: {patent_result.get('message')}")
+        finally:
+            # Only close if we created a new instance (don't close reused driver from /patents/initiate)
+            if not reusing_driver:
+                try:
+                    patent_scraper_instance.close()
+                except:
+                    pass
+            # NOTE: Do NOT reset patent_scraper here - keep browser session alive for multiple searches
+            # This allows users to submit multiple searches with same CAPTCHA session
+
+        # Run scholar scrape
+        scholar_results = []
+        if request.include_papers:
+            scholar_results = run_google_scholar_scrape(request.title, limit=request.scholar_limit)
+
+        # Normalize and combine
+        normalized_patents = []
+        for patent in patent_results:
+            normalized_patents.append({
+                "title": patent.get("title", ""),
+                "abstract": patent.get("abstract", ""),
+                "url": patent.get("patent_url", ""),
+                "application_number": patent.get("application_number", ""),
+                "source": "Indian Patent Office",
+            })
+
+        normalized_scholar = []
+        for paper in scholar_results:
+            normalized_scholar.append({
+                "title": paper.get("title", ""),
+                "abstract": paper.get("abstract", "") or paper.get("snippet", ""),
+                "url": paper.get("paper_url", ""),
+                "authors": paper.get("authors", ""),
+                "source": "Google Scholar",
+            })
+
+        combined_data = normalized_patents + normalized_scholar
+        final_top_k = request.top_k or min(len(combined_data), request.ipr_limit + request.scholar_limit)
+        ranked_results = apply_bm25_ranking(combined_data, request.title, final_top_k)
+        
+        # Create response
+        response = SearchResponse(
+            request_id=request_id,
+            query=request.title,
+            status="completed",
+            total_results=0,
+            timestamp=datetime.now().isoformat(),
+            error_message=None
+        )
+        
+        for item in ranked_results:
+            response.results.append(SearchResult(
+                title=item.get("title", ""),
+                abstract=item.get("abstract", ""),
+                source=item.get("source", ""),
+                url=item.get("url"),
+                application_number=item.get("application_number"),
+                authors=item.get("authors"),
+                similarity_score=item.get("similarity_score")
+            ))
+
+        response.total_results = len(response.results)
+        if not combined_data:
+            response.status = "failed"
+            response.error_message = "No data found from patent and scholar scraping."
+
+        artifact_paths = save_pipeline_artifacts(
+            request_id=request_id,
+            patent_results=normalized_patents,
+            scholar_results=normalized_scholar,
+            combined_results=combined_data,
+            semantic_results=response.results
+        )
+        
+        search_cache[request_id] = response
+        save_search_results(request_id, response)
+        email_sent = maybe_send_email_results(request.email_id, request.title, response.results, request_id)
+        cleanup_delay = CLEANUP_AFTER_EMAIL_SECONDS if email_sent else CLEANUP_TTL_SECONDS
+        schedule_cleanup(request_id, cleanup_delay)
+        
+        logger.info(f"✅ Patent search {request_id} completed (patents={len(normalized_patents)}, papers={len(normalized_scholar)})")
+        track_active_request(request_id, "completed", f"Patent: {request.title}")
+    
+    except Exception as e:
+        logger.error(f"❌ Error in patent search {request_id}: {e}")
+        response = SearchResponse(
+            request_id=request_id,
+            query=request.title,
+            status="failed",
+            total_results=0,
+            timestamp=datetime.now().isoformat(),
+            error_message=str(e)
+        )
+        search_cache[request_id] = response
+        save_search_results(request_id, response)
+        schedule_cleanup(request_id, CLEANUP_TTL_SECONDS)
+        track_active_request(request_id, "failed", f"Patent: {request.title}")
+    finally:
+        untrack_request(request_id)
 
 
 def save_pipeline_artifacts(
@@ -382,21 +595,21 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
     
     The search will be processed in the background.
     Use the returned request_id to check results.
+    Supports multiple concurrent requests.
     """
     
     if not request.query or len(request.query.strip()) == 0:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     
-    if request.ipr_limit < 1 or request.ipr_limit > 200:
-        raise HTTPException(status_code=400, detail="ipr_limit must be between 1 and 200")
-    if request.scholar_limit < 1 or request.scholar_limit > 200:
-        raise HTTPException(status_code=400, detail="scholar_limit must be between 1 and 200")
-    if request.top_k is not None and (request.top_k < 1 or request.top_k > 400):
+    if request.top_k < 1 or request.top_k > 400:
         raise HTTPException(status_code=400, detail="top_k must be between 1 and 400")
     
     request_id = str(uuid.uuid4())
-    logger.info(f"📥 New search request {request_id}: '{request.query}'")
+    logger.info(f"📥 New search request {request_id}: '{request.query}' (user-supplied top_k={request.top_k})")
 
+    # Track this request in queue
+    track_active_request(request_id, "queued", request.query)
+    
     # Save an immediate processing placeholder to prevent transient 404 on polling.
     search_cache[request_id] = SearchResponse(
         request_id=request_id,
@@ -409,6 +622,8 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
     def process_search():
         """Background task to process search request"""
         try:
+            track_active_request(request_id, "processing", request.query)
+            
             response = SearchResponse(
                 request_id=request_id,
                 query=request.query,
@@ -434,6 +649,7 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
                 response.error_message = "No data available. Please run the scrapers first."
                 search_cache[request_id] = response
                 save_search_results(request_id, response)
+                track_active_request(request_id, "completed", request.query)
                 return
             
             # Combine and rank
@@ -461,10 +677,11 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
             search_cache[request_id] = response
             save_search_results(request_id, response)
             
-            logger.info(f"✅ Search request {request_id} completed")
+            logger.info(f"✅ Search request {request_id} completed with {len(results)} results")
+            track_active_request(request_id, "completed", request.query)
         
         except Exception as e:
-            logger.error(f"❌ Error processing search: {e}")
+            logger.error(f"❌ Error processing search {request_id}: {e}")
             response = SearchResponse(
                 request_id=request_id,
                 query=request.query,
@@ -475,14 +692,17 @@ async def search(request: SearchRequest, background_tasks: BackgroundTasks):
             )
             search_cache[request_id] = response
             save_search_results(request_id, response)
+            track_active_request(request_id, "failed", request.query)
+        finally:
+            untrack_request(request_id)
     
-    # Add background task
+    # Add background task (runs immediately in background thread pool)
     background_tasks.add_task(process_search)
     
     return {
         "request_id": request_id,
-        "message": "✅ Search request submitted.",
-        "status": "processing",
+        "message": "✅ Search request submitted. Processing in background.",
+        "status": "queued",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -567,7 +787,7 @@ async def download_search_artifact(request_id: str, artifact: str):
 
 @app.get("/requests", tags=["Search"])
 async def list_all_requests():
-    """List all search requests"""
+    """List all search requests (cached and from disk)"""
     
     requests_list = []
     
@@ -606,6 +826,18 @@ async def list_all_requests():
     }
 
 
+@app.get("/requests/active", tags=["Search"])
+async def get_active_requests():
+    """Get currently active/queued requests (real-time concurrent requests)"""
+    with queue_lock:
+        active_requests = dict(request_queue)
+    
+    return {
+        "active_count": len(active_requests),
+        "active_requests": active_requests
+    }
+
+
 # ============================================================================
 # PATENT SEARCH ENDPOINTS
 # ============================================================================
@@ -614,7 +846,7 @@ async def list_all_requests():
 async def initiate_patent_search():
     """
     Initiate patent search by opening the patent office page.
-    Returns CAPTCHA screenshot in base64.
+    Returns CAPTCHA screenshot in base64 and available search fields.
     """
     logger.info("Initiating patent search...")
     
@@ -647,6 +879,7 @@ async def initiate_patent_search():
             "status": "ready",
             "message": "Patent search page loaded. Please solve the CAPTCHA.",
             "captcha_image": f"data:image/png;base64,{captcha_image}",
+            "search_fields": ["Title", "Abstract", "Application Number", "Complete Specification"],
             "timestamp": datetime.now().isoformat()
         }
     
@@ -663,157 +896,68 @@ async def initiate_patent_search():
 @app.post("/patents/search", response_model=dict, tags=["Patents"])
 async def search_patents(request: PatentSearchRequest, background_tasks: BackgroundTasks):
     """
-    Submit patent search with title and CAPTCHA value.
+    Submit patent search with title and optional CAPTCHA value.
+    
+    Args:
+        title: Search query
+        captcha_value: CAPTCHA value (optional if reusing session from /patents/initiate)
+        search_field: Which field to search (Title, Abstract, etc.)
+        
+    Note: Patent searches use a queue system with multiple concurrent Selenium instances.
+    Configurable via MAX_CONCURRENT_PATENT_SEARCHES environment variable (default: 2).
+    
+    To use without CAPTCHA (pipeline mode):
+        1. Call /patents/initiate first (shows CAPTCHA and loads driver)
+        2. Call /patents/search WITHOUT captcha_value (reuses same driver/session)
+        3. Continue calling /patents/search for multiple searches with same session
     """
     
     if not request.title or len(request.title.strip()) == 0:
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     
-    if not request.captcha_value or len(request.captcha_value.strip()) == 0:
-        raise HTTPException(status_code=400, detail="CAPTCHA value cannot be empty")
-    
-    if request.top_k < 1 or request.top_k > 100:
-        raise HTTPException(status_code=400, detail="top_k must be between 1 and 100")
-    
-    if patent_scraper_lock.locked():
+    # CAPTCHA is optional - only required if NOT reusing existing session
+    if not request.captcha_value and patent_scraper is None:
         raise HTTPException(
-            status_code=409,
-            detail="Patent scraper is busy with another request. Please try again shortly."
+            status_code=400, 
+            detail="CAPTCHA value required. Call /patents/initiate first, or provide captcha_value to search without session"
         )
     
+    if request.top_k and (request.top_k < 1 or request.top_k > 100):
+        raise HTTPException(status_code=400, detail="top_k must be between 1 and 100")
+    
     request_id = str(uuid.uuid4())
-    logger.info(f"Patent search request {request_id}: '{request.title}'")
+    logger.info(f"📥 Patent search request {request_id}: '{request.title}' (captcha_value={bool(request.captcha_value)})")
 
-    # Save an immediate processing placeholder to prevent transient 404 on polling.
+    # Track this request
+    track_active_request(request_id, "queued", f"Patent: {request.title}")
+    
+    # Save an immediate processing placeholder
     search_cache[request_id] = SearchResponse(
         request_id=request_id,
         query=request.title,
-        status="processing",
+        status="queued",
         total_results=0,
         timestamp=datetime.now().isoformat()
     )
     
-    def process_patent_search():
-        """Background task: patent scrape -> scholar scrape -> BM25 ranking"""
-        try:
-            global patent_scraper
-            from backend.src.patent_extractor.patent_scraper import PatentScraperService
-
-            patent_results = []
-            with patent_scraper_lock:
-                if patent_scraper is None:
-                    patent_scraper = PatentScraperService()
-                    patent_scraper.init_driver()
-                
-                # Perform search
-                patent_result = patent_scraper.search_patents(
-                    request.title,
-                    request.captcha_value,
-                    max_results=request.ipr_limit
-                )
-                if patent_result.get("status") == "success":
-                    patent_results = patent_result.get("results", [])
-                else:
-                    logger.warning(f"Patent scraping error: {patent_result.get('message')}")
-
-            # Run scholar scrape outside patent lock
-            scholar_results = []
-            if request.include_papers:
-                scholar_results = run_google_scholar_scrape(request.title, limit=request.scholar_limit)
-
-            # Normalize and combine
-            normalized_patents = []
-            for patent in patent_results:
-                normalized_patents.append({
-                    "title": patent.get("title", ""),
-                    "abstract": patent.get("abstract", ""),
-                    "url": patent.get("patent_url", ""),
-                    "application_number": patent.get("application_number", ""),
-                    "source": "Indian Patent Office",
-                })
-
-            normalized_scholar = []
-            for paper in scholar_results:
-                normalized_scholar.append({
-                    "title": paper.get("title", ""),
-                    "abstract": paper.get("abstract", "") or paper.get("snippet", ""),
-                    "url": paper.get("paper_url", ""),
-                    "authors": paper.get("authors", ""),
-                    "source": "Google Scholar",
-                })
-
-            combined_data = normalized_patents + normalized_scholar
-            final_top_k = request.top_k or min(len(combined_data), request.ipr_limit + request.scholar_limit)
-            ranked_results = apply_bm25_ranking(combined_data, request.title, final_top_k)
-            
-            # Create response
-            response = SearchResponse(
-                request_id=request_id,
-                query=request.title,
-                status="completed",
-                total_results=0,
-                timestamp=datetime.now().isoformat(),
-                error_message=None
-            )
-            
-            for item in ranked_results:
-                response.results.append(SearchResult(
-                    title=item.get("title", ""),
-                    abstract=item.get("abstract", ""),
-                    source=item.get("source", ""),
-                    url=item.get("url"),
-                    application_number=item.get("application_number"),
-                    authors=item.get("authors"),
-                    similarity_score=item.get("similarity_score")
-                ))
-
-            response.total_results = len(response.results)
-            if not combined_data:
-                response.status = "failed"
-                response.error_message = "No data found from patent and scholar scraping."
-
-            artifact_paths = save_pipeline_artifacts(
-                request_id=request_id,
-                patent_results=normalized_patents,
-                scholar_results=normalized_scholar,
-                combined_results=combined_data,
-                semantic_results=response.results
-            )
-            
-            search_cache[request_id] = response
-            save_search_results(request_id, response)
-            email_sent = maybe_send_email_results(request.email_id, request.title, response.results, request_id)
-            cleanup_delay = CLEANUP_AFTER_EMAIL_SECONDS if email_sent else CLEANUP_TTL_SECONDS
-            schedule_cleanup(request_id, cleanup_delay)
-            
-            logger.info(
-                f"Combined search {request_id} completed "
-                f"(patents={len(normalized_patents)}, papers={len(normalized_scholar)}, final={response.total_results}, "
-                f"artifacts={artifact_paths.get('zip')})"
-            )
-        
-        except Exception as e:
-            logger.error(f"Error processing patent search: {e}")
-            response = SearchResponse(
-                request_id=request_id,
-                query=request.title,
-                status="failed",
-                total_results=0,
-                timestamp=datetime.now().isoformat(),
-                error_message=str(e)
-            )
-            search_cache[request_id] = response
-            save_search_results(request_id, response)
-            schedule_cleanup(request_id, CLEANUP_TTL_SECONDS)
+    # Enqueue for processing
+    enqueue_patent_search(request_id, request, background_tasks)
     
-    background_tasks.add_task(process_patent_search)
+    queue_status = get_patent_queue_status()
     
     return {
         "request_id": request_id,
-        "message": "Patent search submitted.",
-        "status": "processing",
+        "message": f"Patent search queued. Position in queue: {queue_status['queued_requests']}",
+        "status": "queued",
+        "queue_status": queue_status,
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.get("/patents/queue-status", tags=["Patents"])
+async def get_patent_queue_update():
+    """Get current patent search queue status"""
+    return get_patent_queue_status()
 
 
 # ============================================================================

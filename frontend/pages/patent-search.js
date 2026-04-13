@@ -10,6 +10,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8
 
 export default function PatentSearchPage() {
   const [captchaImage, setCaptchaImage] = useState('');
+  const [searchFields, setSearchFields] = useState(['Title']);
   const [requestId, setRequestId] = useState('');
   const [results, setResults] = useState(null);
   const [status, setStatus] = useState('idle');
@@ -17,6 +18,7 @@ export default function PatentSearchPage() {
   const [info, setInfo] = useState('');
   const [loadingCaptcha, setLoadingCaptcha] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [captchaUsed, setCaptchaUsed] = useState(false);
   const didLoadCaptcha = useRef(false);
   const canDownload = Boolean(requestId) && (results?.status === 'completed' || results?.status === 'success');
 
@@ -35,6 +37,11 @@ export default function PatentSearchPage() {
       }
 
       setCaptchaImage(data.captcha_image || '');
+      setCaptchaUsed(false);
+      // Store available search fields from backend
+      if (data.search_fields && Array.isArray(data.search_fields)) {
+        setSearchFields(data.search_fields);
+      }
     } catch (err) {
       setError(err.message || 'Something went wrong while loading CAPTCHA');
     } finally {
@@ -91,12 +98,13 @@ export default function PatentSearchPage() {
     };
   }, [requestId]);
 
-  const onSubmit = async ({ title, captchaValue, includePapers, iprLimit, scholarLimit, topK, emailId }) => {
+  const onSubmit = async ({ title, searchField, captchaValue, includePapers, iprLimit, scholarLimit, topK, emailId }) => {
     try {
       setError('');
       setInfo('');
       setResults(null);
       setSearching(true);
+      setCaptchaUsed(true);
       setStatus('processing');
 
       if (emailId) {
@@ -110,6 +118,7 @@ export default function PatentSearchPage() {
         },
         body: JSON.stringify({
           title,
+          search_field: searchField,
           captcha_value: captchaValue,
           include_papers: includePapers,
           ipr_limit: Number(iprLimit),
@@ -151,12 +160,12 @@ export default function PatentSearchPage() {
         <div className={styles.grid}>
           <section className={styles.panel}>
             <h2>Step 1: Solve CAPTCHA</h2>
-            <CaptchaDisplay imageSrc={captchaImage} loading={loadingCaptcha} onRefresh={loadCaptcha} />
+            <CaptchaDisplay imageSrc={captchaImage} loading={loadingCaptcha} onRefresh={loadCaptcha} isSearching={searching} captchaUsed={captchaUsed} />
           </section>
 
           <section className={styles.panel}>
             <h2>Step 2: Search</h2>
-            <PatentSearchForm onSubmit={onSubmit} loading={searching} />
+            <PatentSearchForm onSubmit={onSubmit} loading={searching} searchFields={searchFields} defaultSearchField={searchFields[0]} captchaUsed={captchaUsed} />
             {status === 'processing' && (
               <p className={styles.note}>
                 Pipeline running: patent scraping -&gt; scholar scraping -&gt; BM25 ranking...

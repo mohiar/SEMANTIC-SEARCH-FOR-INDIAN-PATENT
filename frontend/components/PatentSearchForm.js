@@ -1,20 +1,35 @@
 import { useState } from 'react';
 import styles from '../styles/Search.module.css';
 
-export default function PatentSearchForm({ onSubmit, loading }) {
+export default function PatentSearchForm({ onSubmit, loading, searchFields = [], defaultSearchField = 'Title', captchaUsed = false }) {
   const [title, setTitle] = useState('');
+  const [searchField, setSearchField] = useState(defaultSearchField);
   const [captchaValue, setCaptchaValue] = useState('');
   const [emailId, setEmailId] = useState('');
-  const [includePapers, setIncludePapers] = useState(true);
+  const [includePapers, setIncludePapers] = useState(false);
   const [iprLimit, setIprLimit] = useState(25);
-  const [scholarLimit, setScholarLimit] = useState(25);
+  const [scholarLimit, setScholarLimit] = useState(10);
   const [topK, setTopK] = useState(15);
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    // Validate title
+    if (!title.trim()) {
+      alert("Title is required");
+      return;
+    }
+
+    // Validate CAPTCHA - always required
+    if (!captchaValue.trim()) {
+      alert("CAPTCHA is required");
+      return;
+    }
+
     onSubmit({
       title,
-      captchaValue,
+      searchField,
+      captchaValue: captchaValue.trim(),
       includePapers,
       iprLimit: Number(iprLimit),
       scholarLimit: Number(scholarLimit),
@@ -25,27 +40,54 @@ export default function PatentSearchForm({ onSubmit, loading }) {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      <label htmlFor="patent-title">Patent Title</label>
+      <label htmlFor="patent-title">
+        Patent Title / Query <span className={styles.requiredAsterisk}>*</span>
+      </label>
       <input
         id="patent-title"
         type="text"
         value={title}
         required
-        placeholder="Enter patent title"
+        placeholder="Enter search query"
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      <label htmlFor="captcha-value">CAPTCHA Value</label>
-      <input
-        id="captcha-value"
-        type="text"
-        value={captchaValue}
-        required
-        placeholder="Enter CAPTCHA text"
-        onChange={(e) => setCaptchaValue(e.target.value)}
-      />
+      {searchFields.length > 0 && (
+        <>
+          <label htmlFor="search-field">Patent Search Field</label>
+          <select
+            id="search-field"
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+            className={styles.select}
+          >
+            {searchFields.map((field) => (
+              <option key={field} value={field}>
+                {field}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
 
-      <label htmlFor="ipr-limit">IPR Abstract Count</label>
+      <div className={styles.captchaBlock}>
+        <label htmlFor="captcha-value">
+          CAPTCHA Value <span className={styles.requiredAsterisk}>*</span>
+        </label>
+
+        <input
+          id="captcha-value"
+          type="text"
+          value={captchaValue}
+          required
+          placeholder="Enter CAPTCHA text"
+          onChange={(e) => setCaptchaValue(e.target.value)}
+        />
+      </div>
+
+      <label htmlFor="ipr-limit">
+        IPR Abstract Count
+      </label>
       <input
         id="ipr-limit"
         type="number"
@@ -64,7 +106,7 @@ export default function PatentSearchForm({ onSubmit, loading }) {
         Include Google Scholar papers in ranking
       </label>
 
-      <label htmlFor="scholar-limit">Google Scholar Abstract Count</label>
+      <label htmlFor="scholar-limit">Google Scholar Abstract Count (optional)</label>
       <input
         id="scholar-limit"
         type="number"
@@ -94,8 +136,8 @@ export default function PatentSearchForm({ onSubmit, loading }) {
         onChange={(e) => setEmailId(e.target.value)}
       />
 
-      <button type="submit" disabled={loading}>
-        {loading ? 'Running pipeline...' : 'Run Combined Search'}
+      <button type="submit" disabled={loading || captchaUsed}>
+        {loading ? 'Running pipeline...' : captchaUsed ? 'Refresh CAPTCHA to Search Again' : 'Run Combined Search'}
       </button>
     </form>
   );
