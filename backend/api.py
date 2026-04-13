@@ -19,6 +19,12 @@ import smtplib
 from email.message import EmailMessage
 from threading import Lock, Timer
 import shutil
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from repo root (works even when launched from backend/).
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
 
 # Configure logging
 logging.basicConfig(
@@ -216,10 +222,10 @@ def maybe_send_email_results(email_id: Optional[str], query: str, results: List[
         return False
 
     smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    from_email = os.getenv("FROM_EMAIL", smtp_user or "")
+    smtp_pass = (os.getenv("SMTP_PASS"))
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+    from_email = os.getenv("FROM_EMAIL")
 
     if not smtp_user or not smtp_pass or not from_email:
         logger.warning("Email requested but SMTP credentials are not configured; skipping email send.")

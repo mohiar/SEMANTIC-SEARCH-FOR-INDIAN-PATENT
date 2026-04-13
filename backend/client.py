@@ -7,9 +7,16 @@ import requests
 import json
 import time
 import sys
+import os
+from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
 
-BASE_URL = "http://localhost:8000"
+# Load root .env
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
+
+BASE_URL = os.getenv("NEXT_PUBLIC_API_BASE_URL", "http://localhost:8000")
 
 
 def submit_search(query: str, include_patents: bool = True, 

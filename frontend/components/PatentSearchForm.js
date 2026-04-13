@@ -8,7 +8,7 @@ export default function PatentSearchForm({ onSubmit, loading }) {
   const [includePapers, setIncludePapers] = useState(true);
   const [iprLimit, setIprLimit] = useState(25);
   const [scholarLimit, setScholarLimit] = useState(25);
-  const [topK, setTopK] = useState('');
+  const [topK, setTopK] = useState(15);
 
   const handleSubmit = (event) => {
     event.preventDefault();
