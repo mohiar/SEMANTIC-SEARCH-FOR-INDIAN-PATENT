@@ -1,0 +1,72 @@
+[
+  {
+    "title": "USING SENSOR: USER SMARTPHONE DECOUPLING DETECTION AS A MOBILE-BASED VIRTUAL SENSOR",
+    "abstract": "A mobile-based virtual sensor system for detecting user-smartphone decoupling is disclosed. The system utilizes embedded smartphone sensors to identify whether a smartphone is being carried by the user or is decoupled. The invention improves the accuracy of mobile sensing and context-aware applications without requiring external hardware. The system collects sensor data from accelerometer, gyroscope, and other motion sensors. The collected data is pre-processed and analyzed to extract motion patterns. A decision logic determines whether the smartphone is coupled with the user or placed separately. The detected decoupling state is treated as a virtual sensor output and can be used by higher-level applications such as activity recognition, health monitoring, and smart environment systems. - No external sensors required - Low-cost and energy-efficient - Improves reliability of mobile sensing - Easy integration with existing smartphones - Scalable for large user bases",
+    "url": "",
+    "application_number": "202641024102",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "An AI-enabled warehouse mobile robot system with autonomous guidance and user-controlled manual override",
+    "abstract": "The present invention relates to an AI-enabled warehouse mobile robot system providing autonomous guidance with user-controlled manual override is disclosed. the system comprises a wearable inertial measurement unit (IMU) configured to capture real-time user motion parameters, including orientation and acceleration, and an IMU processing module employing trained machine-learning models to perform continuous drift correction, noise reduction, and user intention prediction. corrected motion signals are wirelessly transmitted to an embedded controller on a mobile robot. the robot includes a multi-degree-of-freedom robotic arm mounted on a mobile base capable of autonomous navigation using line-following and obstacle-avoidance sensors. control logic coordinates autonomous navigation of the mobile base with simultaneous teleoperation of the robotic arm based on AI-corrected IMU inputs, enabling smooth and natural manipulation trajectories. a manual override interface allows immediate user control of both the robotic arm and the mobile base for enhanced safety and operational flexibility. the system supports real-time command generation without persistent storage of raw motion data, making it suitable for efficient, safe, and flexible warehouse automation. Fig 1",
+    "url": "",
+    "application_number": "202641022681",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "Adaptive Hybrid AI -based Consensus Optimization Framework for Mobile Cloud Blockchain",
+    "abstract": "The present invention relates to a system and method for adaptive consensus optimization in blockchain networks deployed within Mobile Cloud Computing (MCC) environments. More particularly, the invention discloses an Adaptive Hybrid Artificial Intelligence-Based Consensus Framework (AHA-PBFT-RAFT) configured to enhance security, scalability, and performance of distributed ledger systems. Existing consensus mechanisms such as Practical Byzantine Fault Tolerance (PBFT) and RAFT exhibit limitations including high communication overhead, quadratic message complexity, delayed leader election, limited scalability, and inadequate adaptability to dynamic network conditions. The proposed invention integrates a Reinforcement Learning (RL) based decision engine to dynamically select and optimize consensus mechanisms based on real-time network parameters including latency, transaction load, node failure rate, and security risk indicators. The framework incorporates sharded PBFT to reduce communication complexity, predictive leader pre-selection to minimize downtime during node failures, and adaptive switching between PBFT and RAFT to balance Byzantine fault tolerance with high-throughput requirements. The RL agent continuously updates policy decisions using performance feedback metrics such as throughput, latency, and anomaly detection rates. The invention thereby provides improved fault tolerance, reduced latency, optimized resource utilization, enhanced scalability, and proactive security management in blockchain-based mobile cloud environments.",
+    "url": "",
+    "application_number": "202641022266",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "Autonomous Mobile Robot for Intelligent Localized Environmental Control and Thermal Assistance",
+    "abstract": "An autonomous mobile robotic system (100) for localized environmental conditioning and human-centric thermal comfort is disclosed. The system comprises a mobile robotic platform (110), a navigation and localization unit (120), an air-heating module (130), an environmental and human sensing unit (140), an artificial intelligence-based control engine (150), and a human–robot interaction interface (160). The control engine (150) processes sensed environmental and occupancy data to autonomously position the robotic platform (110) relative to a detected user and regulate directed thermal airflow generated by the air-heating module (130). The system enables adaptive person-centric heating through coordinated sensing, autonomous navigation, and interactive control, thereby improving energy efficiency, accessibility, and indoor environmental comfort within enclosed environments.",
+    "url": "",
+    "application_number": "202641020606",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "A GAMIFIED MOBILE APPLICATION SYSTEM FOR HYPERTENSION MANAGEMENT, MEDICATION ADHERENCE, AND PHARMACOVIGILANCE VIA COMMUNITY PHARMACISTS",
+    "abstract": "The present invention relates to the development of a gamified mobile application system intended to improve hypertension care, medication adherence, and pharmacovigilance by actively engaging with community pharmacists. The proposed system combines real-time blood pressure monitoring, patient-specific medication reminders, and reward-driven engagement strategies to encourage long-term patient engagement. Community pharmacists act as care coordinators, offering counseling, adverse drug reaction reporting, and therapy optimization through a secure cloud-based interface. Advanced analytics and risk prediction algorithms facilitate the early detection of non-adherence and emerging safety trends. The system is expected to improve clinical outcomes, reinforce pharmacist-conducted surveillance, and facilitate patient-cantered digital healthcare for efficient long-term blood pressure management and population-level medication safety surveillance in various community healthcare settings globally. The proposed strategy exemplifies scalable gamification, pharmacy, and mobile health system integration for enhanced adherence, safety, and hypertension self-management in resource-limited and rapidly digitizing healthcare settings for improved public health impact and sustainability. FIG.1",
+    "url": "",
+    "application_number": "202641020452",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "A SMART MOBILE CARE AND EXAMINATION ASSISTANCE SYSTEM FOR DIFFERENTLY-ABLED AND ELDERLY INDIVIDUALS",
+    "abstract": "7. ABSTRACT The present invention relates to a smart mobile care and examination assistance system (100) for providing personalized caregiving and examination support to differently-abled and elderly individuals through a unified digital platform. The system comprises a user device (101) executing a mobile application or progressive web application module (102) configured for accessible service request submission. A web application frontend module (103) communicates over an internet network (104) with a backend server (105) that performs authentication, caregiver matching, booking management, and secure data storage. A communication module (106) enables real-time chat and video interaction between the user device (101) and a caregiver device (107) for pre-service coordination and service delivery. The system supports structured service scheduling, completion tracking, and feedback submission, thereby enhancing accessibility, reliability, and quality of care and examination assistance while promoting independence and dignity for differently-abled and elderly individuals. Figure associated with Abstract is Fig. 1.",
+    "url": "",
+    "application_number": "202641020444",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "\" Waste Food Management and Donation System using Web-Based and Mobile Application \"",
+    "abstract": "The present invention relates to a comprehensive web-based and mobile application–enabled system for managing and redistributing surplus or excess food in a structured, safe, and efficient manner. The system provides a unified digital platform through which households, restaurants, hotels, and event organizers register as donors and list available food along with details including type, quantity, preparation time, expiration time, location, and images. Registered non-governmental organizations (NGOs) and authorized volunteers access real-time listings through geolocation-based interfaces and claim pickups based on proximity, availability, and urgency. A backend processing engine executes matching, scheduling, and routing algorithms to prioritize time-sensitive donations and optimize pickup and delivery logistics. The system further incorporates food safety verification through image records and volunteer inspection feedback, role-based authentication for all users, automated notifications and reminders, and a feedback and reputation management module to ensure accountability and trust. An administrative control panel enables user validation, transaction monitoring, food safety oversight, and generation of analytical impact reports. By integrating geolocation intelligence, logistics automation, quality verification, and real-time communication within a single digital framework, the invention provides a scalable and transparent solution for reducing food wastage and improving access to food for underprivileged communities.",
+    "url": "",
+    "application_number": "202631019667",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "CONTINUE MAPS CONTEXT BETWEEN MOBILE AND CAR INFOTAINMENT SYSTEM",
+    "abstract": "Aspects presented herein may enable a UE to transmit/broadcast navigation information associated with a navigation session to an on-board unit (OBU) (e.g., an infotainment system of a vehicle) to enable the OBU to resume/continue the navigation session. In one aspect, a UE establishes communication with an OBU, where the communication is based on a data sharing protocol. The UE transmits, to the OBU, route information based on the established communication, where the route information is associated with at least one destination. The UE receives, from the OBU, a confirmation of the route information.",
+    "url": "",
+    "application_number": "202647020256",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "An Intelligent Integrated Deep Learning and Multi-Dimensional Trust-Based System for Predictive Mobile Sink Mobility, Secure Energy-Aware Routing, and Self-Adaptive Optimization in Wireless Sensor Networks.",
+    "abstract": "The present invention discloses an intelligent integrated framework for Wireless Sensor Networks that combines multi-horizon deep learning-based mobile sink prediction, multi-dimensional dynamic trust evaluation, secure energy-aware routing, and reinforcement learning-based adaptive performance optimization. The system generates probabilistic sink mobility zones, dynamically recalibrates trust values using anomaly detection and time-decay mechanisms, and continuously adjusts routing parameters through a self-learning optimization process. The invention enhances security, reduces energy consumption, prevents energy hole formation, improves packet delivery ratio and throughput, and significantly extends network lifetime in dynamic Wireless Sensor Network environments.",
+    "url": "",
+    "application_number": "202641018975",
+    "source": "Indian Patent Office"
+  },
+  {
+    "title": "SECURITY SCREEN SYSTEM AND ASSEMBLY METHOD",
+    "abstract": "There is provided a security screen system. The system may include a mesh/infill and a frame including a plurality of frame assemblies surrounding the mesh/infill. At least one of the frame assemblies may include: an outer sash including a first sidewall and a second sidewall defining a channel therebetween, each sidewall including a first engagement feature; an inner sash received in the outer sash, the inner sash including a first leg and a second leg for engagement with the first and second sidewall, respectively, each leg including a second engagement feature for engagement with the first engagement feature of a sidewall to facilitate retention of the inner sash within the channel; and an insulator received, at least in part, in the inner sash, and engaging an end of the mesh/infill in the insulator. There are also provided methods of assembling a security screen system.",
+    "url": "",
+    "application_number": "202647017553",
+    "source": "Indian Patent Office"
+  }
+]

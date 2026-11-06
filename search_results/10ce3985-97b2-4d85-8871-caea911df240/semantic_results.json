@@ -1,0 +1,92 @@
+[
+  {
+    "title": "Neuroshield - An Epileptic Seizure Prediction Web app using EEG Signal.",
+    "abstract": "Epileptic seizures refer to sudden bursts of abnormal electrical activity in the brain, often detected through EEG signals. The seizure detection and prediction are crucial for timely intervention and suitable treatment. This project investigates the integration of XAI techniques into a deep-learning EEG signal classification system for predicting epileptic seizures. The intention is to classify brain signals in three modes: ictal, interictal, and preictal, through ResNet-18 architecture with enhanced interpretability of the model. Five leading XAI methods SHAP, LIME, Grad-CAM, Integrated Gradients, and DeepLIFT were used to provide visual and quantitative insights into the predictions of the model. The performance of these techniques is assessed using various metrics, such as fidelity, localization, and stability, to determine the meaningfulness of the insights provided by the deep learning model into its own decision-making process. The dataset contained pre-recorded EEG signals classified into three seizure stages, and each sample was stored in .mat format with fixed duration. Hence no real-time signal acquisition and hardware integration exist, and data processing here is offline. A web application based on Streamlit was developed to be the frontend, which allows clinicians and users to visualize the model predictions and explanations interactively. The project aims to bring about a reconciliatory step between accuracy and interpretability of medical AI applications, thereby assuring that the system remains high- performing and interpretable in a safety-critical domain like healthcare.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202541112096",
+    "authors": null,
+    "similarity_score": 0.5334
+  },
+  {
+    "title": "An IoT-Based Deep Learning Framework for Seizure Detection and Monitoring.",
+    "abstract": "This system allows for continuous acquisition of physiological signals associated with seizures utilizing internet-based recording systems and intelligent automated analytical processes based on deep learning technology; it will allow for real-time processing of seizure detection on edge devices and cloud processing of seizure detection with long-term data records to assist in the management of epilepsy patients. The seizure detection occurs through the application of a deep learning model that identifies spatial-temporal patterns of seizure activity; upon detection of a seizure event an alert will be sent to the individual diagnosed with epilepsy and/or the epileptic patient’s caregivers or providers to notify them of the seizure event for timely intervention to take place. Both clinical and non-clinical settings May apply this framework which may provide patients more safety reduce the workload on caregivers, develop an intelligent automated monitoring system designed specifically for managing epilepsy.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202641022280",
+    "authors": null,
+    "similarity_score": 0.4946
+  },
+  {
+    "title": "Epileptic Seizure Detection Using Long Short Term Memory Algorithm",
+    "abstract": "ABSTRACT OF THE INVENTION Epilepsy is a neurological disorder that causes seizures to happen again and again. It is a big problem all over the world. This project presents an AI-based method for precise seizure forecasting utilizing EEG signals. Conventional algorithms frequently exhibit imprecision in identifying seizure occurrences, prompting the creation of an innovative Long Short-Term Memory (LSTM) model. The suggested system combines signal processing, feature extraction, and LSTM-based classification to accurately tell the difference between normal brain function and seizure activity. Validation against established methods shows that the model works better, with an amazing 99% accuracy. Because it works in real time, it can quickly find and respond to seizure events, which could lower the risks and make patients safer. This framework is a powerful tool for proactive epilepsy management because it combines advanced deep learning techniques with clinical practice. It helps patients have better outcomes and a better quality of life overall.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202541128972",
+    "authors": null,
+    "similarity_score": 0.4692
+  },
+  {
+    "title": "EDGE AI-BASED SEIZURE DETECTION SYSTEM USING RASPBERRY PI",
+    "abstract": "Seizures are unpredictable neurological events that require continuous monitoring to ensure patient safety and timely medical intervention. Conventional seizure detection systems often rely on centralized cloud processing or hospital-based EEG monitoring, which introduces latency, privacy concerns, and limits real-time responsiveness. This patent presents an Edge Al-based Seizure Detection System implemented on a Raspberry Pi platform for low-cost, real-time, and portable monitoring. The proposed system acquires physiological signals such as EEG and accelerometer data through wearable or non-invasive sensors. The data are preprocessed locally using digital filters to remove noise and artifacts, followed by feature extraction in both the time and frequency domains. A lightweight deep learning model—optimized for edge deployment is used to classify seizure and non-seizure events directly on the Raspberry Pi without reliance on cloud servers. Upon detection, the system triggers alerts via mobile notification or IoT dashboard to caregivers and healthcare providers. Experimental results demonstrate that the edge-deployed model achieves high accuracy with minimal latency while maintaining low power consumption, making it suitable for continuous home or ambulatory monitoring. The integration of Edge Al with a Raspberry Pi ensures patient data privacy, reduced dependency on network connectivity, and real-time decision-making. This work illustrates the feasibility of an affordable, intelligent, and portable seizure detection system that supports proactive epilepsy management and improved quality of life for patients.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202541111210",
+    "authors": null,
+    "similarity_score": 0.4257
+  },
+  {
+    "title": "A REAL-TIME SYSTEM FOR EPILEPTIC SEIZURE PREDICTION AND METHOD THEREOF",
+    "abstract": "ABSTRACT A REAL-TIME SYSTEM FOR EPILEPTIC SEIZURE PREDICTION AND METHOD THEREOF The present invention relates to a real-time system for early prediction of epileptic seizures from scalp electroencephalogram (EEG) signals. The system acquires multi-channel EEG at ≥ 256 Hz, performs digital filtering and sliding-window segmentation, and derives time-, frequency- and wavelet-domain features. A hybrid neural network—comprising separable 1-D convolutions, squeeze-and-excitation blocks, multi-head self-attention and residual connections—classifies each window as pre-ictal or inter-ictal. Quantised to 8-bit precision and pruned to ≤ 720 kB, the model executes on a Typhoon HIL C2000 microcontroller with 0.1–1 s latency and 50–100 mW power. The system of the present invention attains ≥ 99 % accuracy, sensitivity and specificity on CHB-MIT and Siena datasets, issuing actionable alerts at least five seconds before seizure onset to enable continuous bedside or wearable monitoring.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202631041946",
+    "authors": null,
+    "similarity_score": 0.4074
+  },
+  {
+    "title": "Epilepsy seizure prediction using Attention based Bi-LSTM",
+    "abstract": "This invention presents a real-time Epilepsy Seizure Prediction System based on an Attention-Based Bidirectional Long Short-Term Memory (Bi-LSTM) model integrated with EEG signal-processing modules. Continuous EEG signals undergo SciPy-based preprocessing and FFT-based feature extraction to obtain temporal–frequency representations. These features are fed into an attention-enhanced Bi-LSTM network that captures bidirectional temporal dependencies while highlighting the most informative EEG segments. A classification layer generates seizure probability scores, which are visualized in real time to support early and interpretable seizure forecasting. The architecture is designed for low-latency edge deployment, enables patient-specific fine-tuning, and supports seamless clinical integration, offering a robust, efficient, and explainable solution for continuous neurological monitoring and proactive intervention.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202641027910",
+    "authors": null,
+    "similarity_score": 0.379
+  },
+  {
+    "title": "WEARABLE FPGA BASED VLSI ACCELERATOR FOR REAL-TIME SEIZURE FORECASTING",
+    "abstract": "ABSTRACT WEARABLE FPGA BASED VLSI ACCELERATOR FOR REAL-TIME SEIZURE FORECASTING This invention presents a wearable, hardware-efficient real-time epileptic seizure forecasting device based on a CNN–LSTM deep learning accelerator deployed on FPGA/VLSI hardware. Existing seizure detection systems operate reactively and rely on high-power computing resources unsuitable for continuous wearable monitoring. The developed device addresses these limitations through hardware-optimized neural processing, quantized CNN–LSTM architectures, and parallel EEG preprocessing pipelines. The finalized wearable prototype performs continuous EEG acquisition, low-power inference, and early prediction of preictal states several minutes before seizure onset. Implemented entirely on an FPGA platform, the system achieves reduced latency, low memory usage, and energy efficiency suitable for portable medical deployment. This completed invention provides a practical, real-world hardware solution for seizure forecasting, enhancing patient safety, independence, and quality of life.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202541127316",
+    "authors": null,
+    "similarity_score": 0.3613
+  },
+  {
+    "title": "“An explainable hybrid neuromorphic system for EEG-based seizure detection”",
+    "abstract": "The present invention relates to an explainable hybrid neuromorphic system and method for electroencephalography (EEG)-based seizure detection is disclosed. the system comprises an EEG data acquisition and preprocessing module configured to receive single-channel EEG recordings and normalize the recordings into fixed-length segments for inference. a convolutional neural network (CNN) encoder extracts spatial-frequency features from the normalized EEG data, and a spiking neural network (SNN) temporal processing module models temporal dynamics of the extracted features using spike-based computation. a classification module classifies EEG segments into seizure-related classes, including non-seizure, interictal, and seizure states. an explainability module generates human-interpretable attribution maps that identify influential EEG temporal segments contributing to the classification decision, thereby enhancing clinical transparency and trust. a deployment interface enables exporting the hybrid CNN-SNN model for execution on low-power, resource-constrained embedded platforms. the hybrid neuromorphic architecture provides accurate, energy-efficient, and explainable seizure detection suitable for real-time and edge-based neurological monitoring applications. Fig 1 to 5.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202641023398",
+    "authors": null,
+    "similarity_score": 0.3555
+  },
+  {
+    "title": "Design of an Iterative Hybrid Causal Attention Framework with Context-Aware Meta-Learning and Bayesian Refinement for Real-Time Seizure Detection Process",
+    "abstract": "ABSTRACT OF THE INVENTION: This invention presents FUSED-SEIZURE, an iterative hybrid causal attention framework for real-time seizure detection from EEG signals. The system integrates a Temporo-Spatial Transformer Graph Network (TSTG-Net) to capture complex spatial and temporal dependencies across EEG channels. A Contrastive Adversarial Embedding Module (CAEM) enhances feature discriminability using patient-specific interictal samples. The Multi-Resolution Causal Attention Network (MCAN) applies causal constraints across multiple EEG frequency bands to improve detection reliability. Real-time inference is facilitated by the Online Recursive Neuro-Bayesian Filter (ORNBF), which updates seizure probabilities recursively using lightweight neural approximators, achieving a latency of 0.42 seconds. A Temporal Meta-Learning based Patient-Specific Context (TML-PSC) module dynamically adjusts detection thresholds based on contextual factors such as medication levels, circadian rhythm, and historical seizure patterns. Evaluated on public datasets CHB-MIT and TUH, the system demonstrates 93.6% accuracy, 92.7% sensitivity, 95.1% specificity, and a false alarm rate of 0.07 per minute. The framework is designed for low-power, real-time deployment in wearable and implantable neurodevices, enabling personalized, adaptive seizure monitoring and responsive intervention. By combining causal attention, meta-learning, and Bayesian refinement, FUSED-SEIZURE addresses key limitations of existing systems and provides a robust solution for clinical neurology and patient care.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202641013614",
+    "authors": null,
+    "similarity_score": 0.3021
+  },
+  {
+    "title": "MULTIMODAL SENSOR FUSION DEVICE FOR NON INVASIVE SILENT SEIZURE MONITORING",
+    "abstract": "A non-invasive multimodal sensor fusion system intended for the identification and forecasting of quiet or non-convulsive epileptic seizures is the subject of the current invention. The gadget combines a physiological sensor suite in a smartwatch, such as heart rate (HR), electro dermal activity (EDA) and respiration rate (RR) sensors, with a piezoelectric sensor integrated into wearable eyeglasses. These multimodal biosignals are continually collected and sent to an AI- powered fusion module that examines motion signatures suggestive of seizure activity, autonomic variations, and neuromuscular micro-vibrations. The technology reduces false alarms by using contextual correlation to identify ictal, pre-ictal, and post-ictal stages using machine learning algorithms based on individual physiological patterns. The device securely archives event data on a cloud platform for clinical evaluation and sends a real-time alarm to a caregiver's smartphone when it detects odd patterns consistent with a quiet seizure. The invention offers a wearable, low- power, continuous, patient-specific monitoring solution that promotes proactive intervention for people with epilepsy, improves early seizure detection, and increases patient safety.",
+    "source": "Indian Patent Office",
+    "url": "",
+    "application_number": "202641009681",
+    "authors": null,
+    "similarity_score": 0.3019
+  }
+]
